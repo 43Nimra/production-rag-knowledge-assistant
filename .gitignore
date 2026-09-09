@@ -12,6 +12,9 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
+*.egg-info/
+.coverage
+htmlcov/
 
 # IDE
 .vscode/
