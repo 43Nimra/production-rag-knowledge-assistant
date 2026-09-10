@@ -1,0 +1,5 @@
+This is a sample plain text document used for parser testing.
+
+It contains multiple paragraphs and several sentences. Each sentence
+should be detected correctly by the sentence-aware chunker, and the
+overlap between chunks should preserve context across boundaries.
