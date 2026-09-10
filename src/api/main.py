@@ -16,7 +16,7 @@ import structlog
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.routes import auth, health
+from src.api.routes import auth, documents, health
 from src.db.session import check_database_connection
 from src.observability.logger import configure_logging, get_logger
 from src.observability.metrics import metrics_state
@@ -80,6 +80,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(auth.router)
+    app.include_router(documents.router)
 
     return app
 
