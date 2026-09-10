@@ -61,6 +61,9 @@ jobs:
       - name: Install project (with dev extras)
         run: pip install --break-system-packages -e ".[dev]"
 
+      - name: Download NLTK sentence-tokenizer data
+        run: python -m nltk.downloader punkt_tab
+
       - name: Run migrations
         run: alembic upgrade head
 

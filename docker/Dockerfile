@@ -28,6 +28,15 @@ COPY src/ ./src/
 COPY config.py .
 COPY migrations/ ./migrations/
 COPY alembic.ini .
+COPY scripts/ ./scripts/
+
+# NLTK sentence-tokenizer data is baked into the image at build time
+# (ADR-004's chunker needs it) rather than downloaded lazily on first
+# request — a hot ingestion path has no business depending on outbound
+# network access to a third-party data host, and this keeps the image
+# reproducible/deterministic (SRS NFR-08 spirit: no manual setup steps).
+ENV NLTK_DATA=/usr/local/share/nltk_data
+RUN python -m nltk.downloader -d ${NLTK_DATA} punkt_tab
 
 RUN useradd --no-create-home --shell /usr/sbin/nologin appuser \
     && chown -R appuser /app
