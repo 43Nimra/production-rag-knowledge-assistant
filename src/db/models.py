@@ -15,10 +15,19 @@ from sqlalchemy import ARRAY, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import TIMESTAMP, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
-# Output dimension of text-embedding-3-small (ADR-002, ADR-003). Hardcoded
-# intentionally: a change of embedding model requires an explicit Alembic
-# migration rather than a silent dimension mismatch.
-EMBEDDING_DIM = 1536
+# Vector dimension of the ACTIVE embedding provider. Per ADR-003, this
+# project supports OpenAI text-embedding-3-small (1536-dim) and a local
+# BAAI/bge-small-en-v1.5 provider (384-dim) as swappable alternatives —
+# but pgvector requires ONE fixed dimension per column at a time, so only
+# one provider can be active without a migration. This deployment is
+# configured for the free/local provider (EMBEDDER_PROVIDER=local), so
+# EMBEDDING_DIM matches bge-small-en-v1.5's output. See
+# migrations/versions/002_switch_embedding_dim_to_local.py for the change
+# from the original 1536, and ADR-003's "Important constraint" section,
+# which already anticipates this trade-off: switching providers requires
+# an explicit migration and full re-ingestion, by design (no silent
+# dimension mismatch).
+EMBEDDING_DIM = 384
 
 
 class Base(DeclarativeBase):

@@ -2,14 +2,16 @@
 
 MockEmbedder implements EmbedderBase with no network calls (ADR-003's
 testing philosophy: "MockEmbedder ... implement[s] the same interface.
-Unit tests run without any API calls."). It returns real 1536-dimension
-vectors — matching chunks.embedding's VECTOR(1536) column — so ingestion
+Unit tests run without any API calls."). It returns vectors matching
+chunks.embedding's active dimension (384, matching the local
+BAAI/bge-small-en-v1.5 provider this deployment is configured for — see
+migrations/versions/002_switch_embedding_dim_local.py), so ingestion
 integration tests exercise a real pgvector insert, not just a mocked one.
 """
 
 from src.embeddings.base import EmbedderBase
 
-EMBEDDING_DIM = 1536
+EMBEDDING_DIM = 384
 
 
 class MockEmbedder(EmbedderBase):

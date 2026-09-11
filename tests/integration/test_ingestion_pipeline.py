@@ -63,7 +63,7 @@ class TestSuccessfulIngestion:
         # chunks table with non-null embedding column".
         for chunk in chunks:
             assert chunk.embedding is not None
-            assert len(chunk.embedding) == 1536
+            assert len(chunk.embedding) == 384
             assert chunk.token_count > 0
 
     async def test_ingest_docx_and_html_and_txt_succeed(self, db_session: AsyncSession) -> None:
