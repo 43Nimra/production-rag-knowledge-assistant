@@ -38,8 +38,21 @@ COPY scripts/ ./scripts/
 ENV NLTK_DATA=/usr/local/share/nltk_data
 RUN python -m nltk.downloader -d ${NLTK_DATA} punkt_tab
 
+# Same reasoning as NLTK above, applied to the local embedding model
+# (ADR-003): pre-download BAAI/bge-small-en-v1.5's weights at build time
+# so a hot ingestion/query path never depends on outbound network access
+# to Hugging Face at request time. HF_HOME is set to a fixed path so the
+# runtime process finds the same cache LocalEmbedder's default model
+# factory populated here — otherwise sentence-transformers would default
+# to a per-user cache dir under $HOME, which appuser (created below, has
+# no home directory) can't rely on.
+ENV HF_HOME=/usr/local/share/hf-cache
+ENV HF_HUB_OFFLINE=1
+RUN HF_HUB_OFFLINE=0 python -c \
+    "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-en-v1.5')"
+
 RUN useradd --no-create-home --shell /usr/sbin/nologin appuser \
-    && chown -R appuser /app
+    && chown -R appuser /app "${HF_HOME}" "${NLTK_DATA}"
 USER appuser
 
 EXPOSE 8000
