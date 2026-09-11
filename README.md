@@ -18,7 +18,7 @@ Document upload                     Natural language query
       │                                       │
    Chunk (sentence-aware)          Hybrid retrieval
       │                             ├─ Dense (pgvector ANN)
-   Embed (OpenAI)                   ├─ Sparse (BM25)
+   Embed (local BAAI/bge-small)     ├─ Sparse (BM25)
       │                             └─ RRF fusion
    Store (PostgreSQL + pgvector)           │
                                     Build prompt + context
@@ -51,7 +51,7 @@ Every major technology decision is documented with rationale and trade-offs.
 |-----------|-----------|-----|
 | API framework | FastAPI + Python 3.11 | Async-native, Pydantic validation, auto OpenAPI |
 | Database | PostgreSQL 16 + pgvector | One DB for metadata + vectors; ACID + ANN search |
-| Embedding | OpenAI text-embedding-3-small | Best cost/quality for English; provider-abstracted |
+| Embedding | BAAI/bge-small-en-v1.5 (local, via sentence-transformers) | Free, no API key, no rate limits; provider-abstracted (swappable to OpenAI text-embedding-3-small — see ADR-003) |
 | LLM | Anthropic Claude (Haiku dev / Sonnet eval) | Strong citation adherence; cost-tiered |
 | Sparse retrieval | BM25 via rank-bm25 | Exact-match queries where dense search underperforms |
 | Retrieval fusion | Reciprocal Rank Fusion (k=60) | No learned weights; robust at small dataset sizes |

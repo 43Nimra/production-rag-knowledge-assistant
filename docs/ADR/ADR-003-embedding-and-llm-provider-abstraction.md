@@ -205,3 +205,42 @@ This decision should be revisited if:
 - A new provider offers substantially better cost/quality trade-off
 - Embedding model evaluation shows meaningful quality improvement from `text-embedding-3-large`
 - Data privacy requirements mandate fully local inference
+
+---
+
+## Addendum: Active Embedding Provider Switched to Local (2026-09-10)
+
+**Status:** Accepted
+
+This ADR's "Alternative" section for the embedding provider — `LocalEmbedder`
+via `BAAI/bge-small-en-v1.5` (sentence-transformers) — is now the **active**
+configuration for this deployment (`EMBEDDER_PROVIDER=local`), not just a
+documented extension point. OpenAI's embedding API was not free
+(no free tier; requires a minimum account deposit), and this project has
+no funded API budget. `LocalEmbedder` costs nothing, needs no API key,
+and has no rate limits — trade-offs against it are documented below.
+
+**This decision was implemented, not just documented, in this pass:**
+- `src/embeddings/local.py`: `LocalEmbedder` implementation
+- `migrations/versions/002_switch_embedding_dim_local.py`: `chunks.embedding`
+  changed from `vector(1536)` to `vector(384)` (bge-small-en-v1.5's output
+  dimension) — the exact "explicit Alembic migration, not a silent
+  dimension mismatch" this ADR's original text anticipated
+- `docker/Dockerfile`: model weights baked into the image at build time
+  (same reasoning as ADR-004's NLTK data — a hot path shouldn't depend on
+  network access at request time)
+
+**Trade-off accepted:** `sentence-transformers` pulls in `torch` as a
+transitive dependency, which is substantial (multi-GB with the default
+PyPI wheel, which includes unused CUDA support on this CPU-only
+deployment). This works against ADR-006's <300MB image goal. A follow-up
+optimization — pinning a CPU-only torch wheel via
+`--extra-index-url https://download.pytorch.org/whl/cpu` — was identified
+but not applied or verified in this pass (see PHASE2 implementation
+report's Known Limitations).
+
+**Consequence for provider swap-back:** Returning to `EMBEDDER_PROVIDER=openai`
+requires downgrading the same migration (`alembic downgrade 001`) and
+full re-ingestion, per this ADR's original "Important constraint" section
+— pgvector requires one fixed dimension per column at a time, so the two
+providers are not simultaneously active.
