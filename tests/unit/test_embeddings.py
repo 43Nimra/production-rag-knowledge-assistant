@@ -2,7 +2,9 @@
 
 OpenAIEmbedder's `client` and `sleep_fn` are injectable specifically so
 these tests never hit the network or a real API key (NFR-22), and don't
-burn real wall-clock time on the 1s/2s/4s backoff.
+burn real wall-clock time on the 1s/2s/4s backoff. LocalEmbedder's
+`model`/`model_factory` are injectable for the same reason — no
+multi-hundred-MB model download needed just to test the wiring.
 """
 
 from dataclasses import dataclass
@@ -12,6 +14,7 @@ import openai
 import pytest
 
 from src.embeddings.base import EmbedderError
+from src.embeddings.local import LocalEmbedder
 from src.embeddings.openai import MAX_BATCH_SIZE, OpenAIEmbedder
 
 
@@ -114,3 +117,74 @@ class TestRetryAndBackoff:
         embedder.embed_documents(["only"])
         # ARCHITECTURE.md §5.2: "Exponential backoff: 1s, 2s, 4s".
         assert delays == [1.0, 2.0]
+
+
+class _FakeLocalModel:
+    """Stands in for a sentence_transformers.SentenceTransformer. Returns
+    real numpy arrays (as the real model does) so LocalEmbedder's
+    `.tolist()` call is exercised faithfully."""
+
+    def __init__(self, vectors: list[list[float]] | None = None) -> None:
+        self._vectors = vectors
+
+    def encode(self, texts: list[str], normalize_embeddings: bool = True):  # noqa: ANN201
+        import numpy as np
+
+        if self._vectors is not None:
+            return np.array(self._vectors)
+        return np.array([[float(i)] for i in range(len(texts))])
+
+
+class _FailingLocalModel:
+    def encode(self, texts: list[str], normalize_embeddings: bool = True):  # noqa: ANN201
+        raise RuntimeError("simulated inference failure")
+
+
+class TestLocalEmbedderContract:
+    def test_embed_query_returns_single_vector(self) -> None:
+        embedder = LocalEmbedder(model=_FakeLocalModel(vectors=[[0.1, 0.2, 0.3]]))
+        vector = embedder.embed_query("hello")
+        assert vector == pytest.approx([0.1, 0.2, 0.3])
+
+    def test_embed_documents_returns_one_vector_per_text(self) -> None:
+        embedder = LocalEmbedder(model=_FakeLocalModel())
+        vectors = embedder.embed_documents(["a", "b", "c"])
+        assert vectors == [[0.0], [1.0], [2.0]]
+
+    def test_embed_documents_empty_list_returns_empty_without_loading_model(self) -> None:
+        def factory_that_should_never_be_called(model_name: str) -> object:
+            raise AssertionError("model should not be loaded for an empty batch")
+
+        embedder = LocalEmbedder(model_factory=factory_that_should_never_be_called)
+        assert embedder.embed_documents([]) == []
+
+
+class TestLocalEmbedderLazyLoading:
+    def test_model_loaded_lazily_via_factory_and_cached(self) -> None:
+        calls: list[str] = []
+
+        def factory(model_name: str) -> object:
+            calls.append(model_name)
+            return _FakeLocalModel()
+
+        embedder = LocalEmbedder(model_factory=factory)
+        assert calls == []  # not loaded at construction time
+
+        embedder.embed_query("hi")
+        assert len(calls) == 1
+
+        embedder.embed_query("hi again")
+        assert len(calls) == 1  # cached, not reloaded on second call
+
+    def test_model_load_failure_raises_embedder_error(self) -> None:
+        def failing_factory(model_name: str) -> object:
+            raise RuntimeError("simulated model load failure")
+
+        embedder = LocalEmbedder(model_factory=failing_factory)
+        with pytest.raises(EmbedderError):
+            embedder.embed_query("hi")
+
+    def test_inference_failure_raises_embedder_error(self) -> None:
+        embedder = LocalEmbedder(model=_FailingLocalModel())
+        with pytest.raises(EmbedderError):
+            embedder.embed_documents(["a"])

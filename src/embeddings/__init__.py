@@ -14,14 +14,12 @@ def get_embedder() -> EmbedderBase:
 
         return OpenAIEmbedder()
 
-    # ADR-003 documents a local/sentence-transformers alternative
-    # (EMBEDDER_PROVIDER=local) as an extension point for data-privacy
-    # constraints, but it is not part of the approved Phase 2 scope — no
-    # LocalEmbedder implementation exists yet. Failing clearly here (rather
-    # than silently falling back to OpenAI) surfaces a misconfiguration
-    # immediately instead of masking it.
+    if settings.embedder_provider == "local":
+        from src.embeddings.local import LocalEmbedder
+
+        return LocalEmbedder()
+
     raise ValueError(
         f"Unsupported EMBEDDER_PROVIDER={settings.embedder_provider!r}. "
-        "Only 'openai' is implemented; 'local' is a documented future "
-        "extension point (ADR-003), not yet built."
+        "Supported values: 'openai', 'local' (ADR-003)."
     )
