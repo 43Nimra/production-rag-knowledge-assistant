@@ -52,6 +52,10 @@ class Settings(BaseSettings):
     embedder_provider: str = Field(default="openai")
     embed_model: str = Field(default="text-embedding-3-small")
     openai_api_key: str = Field(default="")
+    local_embed_model: str = Field(
+        default="BAAI/bge-small-en-v1.5",
+        description="Model used by LocalEmbedder when EMBEDDER_PROVIDER=local (ADR-003).",
+    )
 
     # --- LLM (declared now, consumed starting Phase 3/4) ---
     llm_provider: str = Field(default="anthropic")
