@@ -49,15 +49,17 @@ dependencies = [
     "sentence-transformers==3.3.1",
     # Pinned explicitly for reproducibility, even though it's only a
     # transitive dependency (pgvector, and now scipy/scikit-learn via
-    # sentence-transformers). numpy>=2.1's shipped type stubs use PEP 695
-    # `type X = ...` syntax, which requires mypy's `python_version` to
-    # target 3.12+ for stub-parsing purposes — see the comment on
-    # `[tool.mypy] python_version` below for why that doesn't weaken this
-    # project's actual Python 3.11 constraint (SRS §6). scipy (needed by
-    # sentence-transformers) requires numpy>=2.0, which is incompatible
-    # with the numpy==1.26.4 this project pinned before the local
-    # embedding provider was added — confirmed by running pip locally.
-    "numpy==2.5.3",
+    # sentence-transformers). MUST stay below 2.5.0: numpy 2.5.0+ requires
+    # Python >=3.12 and has no wheel for Python 3.11 at all — this broke
+    # the actual Docker build (python:3.11-slim) with "No matching
+    # distribution found for numpy==2.5.3", caught only when the user
+    # built the real image, not in my own sandbox verification (which
+    # runs Python 3.12 and so never exercised the 3.11 install path).
+    # 2.2.6 is the latest 2.x release confirmed to have a cp311 wheel for
+    # linux/aarch64 (verified via `pip download --python-version 311
+    # --platform manylinux2014_aarch64`) and satisfies scipy's own
+    # numpy>=2.0 requirement.
+    "numpy==2.2.6",
 ]
 
 [project.optional-dependencies]
@@ -86,21 +88,13 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 ignore = []
 
 [tool.mypy]
-# NOTE: this governs mypy's own stub-parsing/stdlib-selection behavior
-# only — it does not relax this project's actual Python 3.11 constraint
-# (SRS §6). That constraint is enforced independently by (a) CI pinning
-# the exact 3.11 interpreter via actions/setup-python, so any 3.12-only
-# syntax in OUR code fails at parse time regardless of mypy's opinion,
-# and (b) ruff's `target-version = "py311"` lint check. Set to 3.12 here
-# only so mypy can parse numpy's installed type stubs, which use PEP 695
-# `type X = ...` syntax requiring a 3.12+ stub-parsing target — numpy is
-# a transitive dependency (via pgvector and, as of the local embedding
-# provider, scipy/scikit-learn) we never import directly, and mypy
-# refuses to parse ANY stub using that syntax below 3.12, which is a
-# syntax-level parse failure that per-module suppression options
-# (ignore_errors, follow_imports=skip) cannot work around — confirmed
-# by testing both directly.
-python_version = "3.12"
+# Matches this project's actual Python 3.11 constraint (SRS §6). Earlier
+# in Phase 2 this was temporarily bumped to 3.12 to work around
+# numpy>=2.5's PEP 695 stub syntax — that numpy version turned out to be
+# uninstallable on Python 3.11 at all (see the numpy pin's comment
+# above), so pinning numpy to 2.2.6 fixed both problems at once and this
+# setting could revert to the project's real target.
+python_version = "3.11"
 strict = true
 warn_unused_ignores = true
 disallow_untyped_defs = true

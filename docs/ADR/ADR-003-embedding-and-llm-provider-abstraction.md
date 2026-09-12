@@ -244,3 +244,16 @@ requires downgrading the same migration (`alembic downgrade 001`) and
 full re-ingestion, per this ADR's original "Important constraint" section
 — pgvector requires one fixed dimension per column at a time, so the two
 providers are not simultaneously active.
+
+**Bug found and fixed post-implementation:** the first version of this
+change pinned `numpy==2.5.3`. That version requires Python >=3.12 and has
+no installable wheel for Python 3.11 at all, which broke the real Docker
+build (`python:3.11-slim`) with `No matching distribution found for
+numpy==2.5.3` — not caught during implementation because that sandbox
+ran Python 3.12 and so never exercised the actual 3.11 install path.
+Fixed by pinning `numpy==2.2.6` instead (confirmed via `pip download
+--python-version 311 --platform manylinux2014_aarch64` to have a real
+cp311 aarch64 wheel, and to satisfy scipy's `numpy>=2.0` requirement).
+This also let `[tool.mypy] python_version` revert from the `3.12`
+workaround back to `3.11`, matching this project's actual constraint
+exactly — 2.2.6's stubs don't have the PEP 695 syntax issue 2.5.x's did.
